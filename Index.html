@@ -1,0 +1,134 @@
+index.html<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnnonceBoost – Annonces Vinted & Leboncoin en 5 secondes</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --txt:#1c1f2a; --muted:#6b7280; --brand:#4f46e5; --brand2:#7c3aed; --border:#e5e7eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); line-height:1.5; }
+  .wrap { max-width:640px; margin:0 auto; padding:24px 16px 64px; }
+  header { text-align:center; padding:24px 0 8px; }
+  h1 { font-size:1.9rem; margin:0 0 8px; }
+  h1 span { background:linear-gradient(90deg,var(--brand),var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px; }
+  label { display:block; font-weight:600; font-size:.9rem; margin:12px 0 4px; }
+  input, select, textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font:inherit; background:#fff; }
+  textarea { min-height:80px; resize:vertical; }
+  .row { display:flex; gap:12px; }
+  .row > div { flex:1; }
+  button { width:100%; margin-top:16px; padding:13px; border:0; border-radius:10px; font:inherit; font-weight:700; color:#fff; background:linear-gradient(90deg,var(--brand),var(--brand2)); cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  button.ghost { background:#fff; color:var(--brand); border:1px solid var(--brand); margin-top:10px; }
+  .quota { text-align:center; font-size:.85rem; color:var(--muted); margin-top:10px; }
+  #result { white-space:pre-wrap; }
+  .hidden { display:none; }
+  .paywall { text-align:center; }
+  .price { font-size:1.6rem; font-weight:800; }
+  footer { text-align:center; color:var(--muted); font-size:.8rem; margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Annonce<span>Boost</span></h1>
+    <p class="sub">Une annonce Vinted ou Leboncoin qui se vend vite, en 5 secondes.</p>
+  </header>
+
+  <div class="card" id="formCard">
+    <label for="platform">Plateforme</label>
+    <select id="platform">
+      <option>Vinted</option>
+      <option>Leboncoin</option>
+    </select>
+
+    <label for="item">Objet</label>
+    <input id="item" placeholder="Ex : Veste en jean Levi's taille M">
+
+    <div class="row">
+      <div>
+        <label for="condition">État</label>
+        <select id="condition">
+          <option>Neuf avec étiquette</option>
+          <option>Très bon état</option>
+          <option selected>Bon état</option>
+          <option>État correct</option>
+        </select>
+      </div>
+      <div>
+        <label for="price">Prix (€)</label>
+        <input id="price" type="number" inputmode="decimal" placeholder="25">
+      </div>
+    </div>
+
+    <label for="details">Détails (optionnel)</label>
+    <textarea id="details" placeholder="Marque, couleur, défauts, raison de la vente…"></textarea>
+
+    <button id="go">Générer mon annonce</button>
+    <div class="quota" id="quota"></div>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <strong>Ton annonce</strong>
+    <p id="result"></p>
+    <button class="ghost" id="copy">Copier</button>
+  </div>
+
+  <div class="card paywall hidden" id="paywall">
+    <div class="price">4,99 € / mois</div>
+    <p>Tu as utilisé tes 3 annonces gratuites. Passe en illimité pour continuer à vendre plus vite.</p>
+    <a href="https://buy.stripe.com/REMPLACE_MOI"><button>Passer en illimité</button></a>
+  </div>
+
+  <footer>© AnnonceBoost</footer>
+</div>
+
+<script>
+const FREE_LIMIT = 3;
+const $ = (id) => document.getElementById(id);
+
+function used() { try { return parseInt(localStorage.getItem('ab_used') || '0', 10); } catch { return 0; } }
+function setUsed(n) { try { localStorage.setItem('ab_used', String(n)); } catch {} }
+function renderQuota() {
+  const left = Math.max(0, FREE_LIMIT - used());
+  $('quota').textContent = left > 0 ? `${left} annonce(s) gratuite(s) restante(s)` : '';
+  $('paywall').classList.toggle('hidden', left > 0);
+}
+renderQuota();
+
+$('go').addEventListener('click', async () => {
+  if (used() >= FREE_LIMIT) { $('paywall').classList.remove('hidden'); return; }
+  const payload = {
+    platform: $('platform').value,
+    item: $('item').value.trim(),
+    condition: $('condition').value,
+    price: $('price').value,
+    details: $('details').value.trim()
+  };
+  if (!payload.item) { alert("Indique au moins l'objet à vendre."); return; }
+
+  const btn = $('go');
+  btn.disabled = true; btn.textContent = 'Génération…';
+  try {
+    const r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur');
+    $('result').textContent = data.text;
+    $('resultCard').classList.remove('hidden');
+    setUsed(used() + 1);
+    renderQuota();
+  } catch (e) {
+    alert('Oups : ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Générer mon annonce';
+  }
+});
+
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('result').textContent); $('copy').textContent = 'Copié ✓'; setTimeout(() => $('copy').textContent = 'Copier', 1500); } catch {}
+});
+</script>
+</body>
+</html>
