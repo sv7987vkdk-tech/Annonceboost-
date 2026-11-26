@@ -3,7 +3,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey) {
     return res.status(500).json({ error: 'Clé API manquante côté serveur' });
   }
@@ -30,18 +30,22 @@ MOTS-CLÉS : (6 à 8 mots-clés séparés par des virgules)
 
 N'invente aucune information qui n'est pas fournie.`;
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
     const r = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
     const data = await r.json();
     if (!r.ok) {
-      return res.status(502).json({ error: 'Le service IA a répondu une erreur' });
+      const msg = String(data?.error?.message || 'erreur inconnue').slice(0, 300);
+      return res.status(502).json({ error: `IA (${r.status}) : ${msg}` });
     }
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
@@ -51,4 +55,5 @@ N'invente aucune information qui n'est pas fournie.`;
   } catch (e) {
     return res.status(500).json({ error: 'Erreur serveur' });
   }
+};
 };
