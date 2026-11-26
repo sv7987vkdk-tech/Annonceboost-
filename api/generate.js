@@ -56,4 +56,4 @@ N'invente aucune information qui n'est pas fournie.`;
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-};
+
