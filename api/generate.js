@@ -30,7 +30,7 @@ MOTS-CLÉS : (6 à 8 mots-clés séparés par des virgules)
 
 N'invente aucune information qui n'est pas fournie.`;
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
